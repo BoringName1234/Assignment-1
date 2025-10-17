@@ -34,20 +34,17 @@ int product(const int *dims, int num_dims);
 // Now define the serial functions.
 
 // Simulation functions
-void update_grid(){
-    for(int i=0; i<size; size++){
-
-    }
-}
-
-int check_infection(int *grid[], int num_elements){
-    for (int i = 0; i < num_elements;i++)
+int check_infection(int *grid[], int dims[]){
+    for (int i = 0; i < dims[0];i++)
     {
-        if (grid[i] == 1)
-        {
-            // There is an infected cell
-            return 1;
+        for(int j = 0; j < dims[1]; j++){
+            if (grid[i] == 1)
+            {
+                // There is an infected cell
+                return 1;
+            }
         }
+        
     }
 
     // There weren't any infected cells
@@ -55,29 +52,78 @@ int check_infection(int *grid[], int num_elements){
         
 }
 
-void simulate(double r, int rec_time, float *pop_density[], int *grid[], int num_elements, int *time_infected[]){
+/**
+ * Given a source cell, try to infect every other cell
+ */
+void attemptInfection(int *grid[], int *next_grid[], float *pop_density[], int dims[], double r,
+                        int source_x, int source_y){
+    for(int i = 0; i < dims[0]; i++){
+        for(int j = 0; j < dims[1]; j++){
+            // First check if it is not immune or infected already
+            if(grid[i][j] == 0){
+                int x_dist = abs(i - source_x);
+                int y_dist = abs(j - source_y);
+                int manhattan = x_dist + y_dist;
+                if(manhattan <= r){
+                    float probability = pop_density[i][j] / (x_dist + y_dist);
+                    // Get a random number
+                    float ra = (float)rand()/(float)(RAND_MAX);
+                    if(ra <= probability){
+                        next_grid[source_x][source_y] = 1;
+                    }
+                }
+
+            }
+        }
+    }
+    return;
+}
+
+/**
+ * Performs one step of a simulation. Returns 0 if there are no infected cells left, and 1 otherwise.
+ */
+int simulate_step(double r, int rec_time, float *pop_density[], int *grid[], int dims[], int *time_infected[]){
     // Finish simulation when there are no infected cells
-    if (check_infection(grid, num_elements) == 0){
-        return ;
+    if (check_infection(grid, dims) == 0){
+        return 0;
     }
 
+    int num_elements = (dims[0] * dims[1]);
+    // This will store the changes to the grid
+    int *next_grid_1d = malloc(num_elements, sizeof(int));
+    // Copy the grid to next_grid
+    memcpy(next_grid_1d, grid, num_elements * sizeof(int));
+    // Create a 2d pointer
+    int ( * next_grid) [dims[1]] = ( int ( * ) [dims[0]] ) next_grid_1d;
+
     // Otherwise update the grid
-    // Update recovery
-    for(int i = 0; i < num_elements; i++){
-        if(grid[i] == 1){
-            time_infected[i] += 1;
+    // Update recovery and immunity
+    for(int i = 0; i < dims[0]; i++){
+        for(int j = 0; j < dims[1]; j++){
+            if(grid[i][j] == 1){
+                // Check for immunity condition before updating the time
+                if(time_infected[i][j] == rec_time){
+                    next_grid[i][j] = 2;
+                }
+                time_infected[i][j] += 1;
+            }
         }
     }
 
     // Spread disease
-    for(int i = 0; i < num_elements; i++){
-        if(grid[i] == 1){
-            for(int i = 0; i < num_elements)
+    for(int i = 0; i < dims[0]; i++){
+        for(int j = 0; j < dims[1]; j++){
+            if(grid[i] == 1){
+                attemptInfection(grid, next_grid, pop_density, dims, r, i, j);
+            }
         }
     }
 
-    // Probability of cell being infected
-    float probability = pop_density[cell] / manhattan(source, target);
+    // Update the grid
+    memcpy(grid, next_grid, num_elements * sizeof(int));
+
+    // Return 1 if there is an infected cell
+    return 1;
 }
 
 void initialise(int num_elements, int grid[]){
@@ -85,12 +131,35 @@ void initialise(int num_elements, int grid[]){
     grid[r] = 1;
 }
 
+/**
+ * Runs an infection simulation, and returns the number of people infected.
+ */
+int single_simulation(double r, int rec_time, float *pop_density[], int *grid[], int dims[], int *time_infected[]){
+    int infections = 1;
+    // Run the simulation until there are no infections
+    while(infections == 1){
+        infections = simulate_step(r, rec_time, pop_density, grid, dims, time_infected);
+    }
+
+    // Count the number of infections
+    int count = 0;
+    for(int i = 0; i < dims[0]; i++){
+        for(int j = 0; j < dims[1]; j++){
+            if(grid[i][j] == 2){
+                count += 1;
+            }
+        }
+    }
+
+    return count;
+}
+
 int main (double r, int  rec_time, int max_runs, char infile)
 {
     // Read the file here
     int num_dims = read_num_dims(infile);
     int dims[] = read_dims(infile, num_dims); 
-    float *pop_density[] = read_array(infile, dims, num_dims);
+    float *pop_density_1d[] = read_array(infile, dims, num_dims);
 
     
 
@@ -99,21 +168,26 @@ int main (double r, int  rec_time, int max_runs, char infile)
 
     // Create the grid, inititalised to zero
     int num_elements = product(dims, num_dims);
-    int *grid[] = calloc(num_elements, sizeof(int));
-    int *time_infected = calloc(num_elements, sizeof(int));
+    int *grid_1d[] = calloc(num_elements, sizeof(int));
+    int *time_infected_1d = calloc(num_elements, sizeof(int));
 
-
-    // Map it to a 2d array
-    //int Two_DArray[] = malloc((TwoD_Array ) [ dims[0] ] = ( double ( * ) [ dims[0] ] ) grid);
-    int *Two_D[] =;
-    int ( *  ) [ dims[0] ] = ( int ( * ) [ 4 ] ) arr1;
+    // Map them to 2d arrays
+    int ( * grid) [dims[1]] = ( int ( * ) [dims[0]] ) grid_1d;
+    int ( * time_infected) [dims[1]] = ( int ( * ) [dims[0]] ) time_infected_1d;
+    float ( * pop_density) [dims[1]] = ( int ( * ) [dims[0]] ) pop_density_1d;
 
 
     // Initialise the simulation
     initialise(num_elements, grid);
 
+    int num = 0;
+    int temp = 0;
     // Start the simulation
     for(int i = 0; i < max_runs; i++){
-        simulate(r, rec_time, pop_density, grid, num_elements, time_infected);
+        num += single_simulation(r, rec_time, pop_density, grid, dims, time_infected);
     }
+
+    float avg = (float)(num / max_runs);
+
+    printf("The average number of infections: %", );
 }
