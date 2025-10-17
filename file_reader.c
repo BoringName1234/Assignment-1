@@ -167,3 +167,7 @@ int product(const int *dims, int num_dims){
 
     return product;
 }
+
+int test_func(int e){
+    return 1920;
+}

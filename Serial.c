@@ -2,33 +2,35 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "file_reader.h"
+
 // Get the functions from the file_reader file
 /**
  * Takes a filename as a parameter and returns the number of dimensions 
  * in the file as an integer. 
  */
-int read_num_dims(const char *filename);
+//int read_num_dims(const char *filename);
 /**
  * Takes a filename and the number of dimensions as parameters, and returns 
  * an array of dimensions 
  */
-int *read_dims(const char *filename, int num_dims);
+//int *read_dims(const char *filename, int num_dims);
 /**
  * Takes as parameters: a filename, the array of dimensions and the number 
  * of dimensions. This function returns a one-dimensional array of floats that are read 
  * from the given file.
  */
-float *read_array(const char *filename, const int *dims, int num_dims);
+//float *read_array(const char *filename, const int *dims, int num_dims);
 /**
  * Writes to the output file.
  */
-int write_to_output_file(const char *filename, float *output, int *dims, int num_dims);
+//int write_to_output_file(const char *filename, float *output, int *dims, int num_dims);
 /**
  * Takes the array of dimensions as an and the number of dimensions as a
  * parameter, and returns the product of them. Used to find the total number of elements
  * given the dimensions
  */
-int product(const int *dims, int num_dims);
+//int product(const int *dims, int num_dims);
 
 
 // Now define the serial functions.
@@ -38,7 +40,7 @@ int check_infection(int *grid[], int dims[]){
     for (int i = 0; i < dims[0];i++)
     {
         for(int j = 0; j < dims[1]; j++){
-            if (grid[i] == 1)
+            if (grid[i][j] == 1)
             {
                 // There is an infected cell
                 return 1;
@@ -90,7 +92,7 @@ int simulate_step(double r, int rec_time, float *pop_density[], int *grid[], int
 
     int num_elements = (dims[0] * dims[1]);
     // This will store the changes to the grid
-    int *next_grid_1d = malloc(num_elements, sizeof(int));
+    int *next_grid_1d = malloc(num_elements * sizeof(int));
     // Copy the grid to next_grid
     memcpy(next_grid_1d, grid, num_elements * sizeof(int));
     // Create a 2d pointer
@@ -113,7 +115,7 @@ int simulate_step(double r, int rec_time, float *pop_density[], int *grid[], int
     // Spread disease
     for(int i = 0; i < dims[0]; i++){
         for(int j = 0; j < dims[1]; j++){
-            if(grid[i] == 1){
+            if(grid[i][j] == 1){
                 attemptInfection(grid, next_grid, pop_density, dims, r, i, j);
             }
         }
@@ -134,9 +136,24 @@ void initialise(int num_elements, int grid[]){
 /**
  * Runs an infection simulation, and returns the number of people infected.
  */
-int single_simulation(double r, int rec_time, float *pop_density[], int *grid[], int dims[], int *time_infected[]){
-    int infections = 1;
+int single_simulation(double r, int rec_time, int dims[], float pop_density[]){
+    // Setup all of the simualtion variables
+
+    // Create the grid, inititalised to zero
+    int num_elements = dims[0] * dims[1];
+    int *grid_1d[] = calloc(num_elements, sizeof(int));
+    int *time_infected_1d = calloc(num_elements, sizeof(int));
+
+    // Map them to 2d arrays
+    int ( * grid) [dims[1]] = ( int ( * ) [dims[0]] ) grid_1d;
+    int ( * time_infected) [dims[1]] = ( int ( * ) [dims[0]] ) time_infected_1d;
+    float ( * pop_density) [dims[1]] = ( int ( * ) [dims[0]] ) pop_density_1d;
+    
+    // Initialise the simulation
+    initialise(num_elements, grid);
+    
     // Run the simulation until there are no infections
+    int infections = 1;
     while(infections == 1){
         infections = simulate_step(r, rec_time, pop_density, grid, dims, time_infected);
     }
@@ -161,33 +178,17 @@ int main (double r, int  rec_time, int max_runs, char infile)
     int dims[] = read_dims(infile, num_dims); 
     float *pop_density_1d[] = read_array(infile, dims, num_dims);
 
-    
-
     // Initialise the random number generation
     srand(time(NULL));   // Initialization, should only be called once.
 
-    // Create the grid, inititalised to zero
-    int num_elements = product(dims, num_dims);
-    int *grid_1d[] = calloc(num_elements, sizeof(int));
-    int *time_infected_1d = calloc(num_elements, sizeof(int));
-
-    // Map them to 2d arrays
-    int ( * grid) [dims[1]] = ( int ( * ) [dims[0]] ) grid_1d;
-    int ( * time_infected) [dims[1]] = ( int ( * ) [dims[0]] ) time_infected_1d;
-    float ( * pop_density) [dims[1]] = ( int ( * ) [dims[0]] ) pop_density_1d;
-
-
-    // Initialise the simulation
-    initialise(num_elements, grid);
-
     int num = 0;
     int temp = 0;
-    // Start the simulation
+    // Each loop runs a single simulation
     for(int i = 0; i < max_runs; i++){
-        num += single_simulation(r, rec_time, pop_density, grid, dims, time_infected);
+        num += single_simulation(r, rec_time, dims, pop_density);
     }
 
     float avg = (float)(num / max_runs);
 
-    printf("The average number of infections: %", );
+    printf("The average number of infections: %f", avg);
 }

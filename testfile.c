@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "file_reader.h"
+
+//int test_func(int e);
+
 int main (){
     int arr1[] = {1, 2, 3, 4, 
                     5, 6, 7, 8};
@@ -25,4 +29,6 @@ int main (){
     // 9 10 11
     // coordinate = [x % 4,]
     // manhattan = 
+
+    printf("%d", test_func(1));
 }
