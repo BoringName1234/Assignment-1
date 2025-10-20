@@ -171,7 +171,7 @@ int single_simulation(double r, int rec_time, int dims[], float pop_density[]){
     return count;
 }
 
-int main (double r, int  rec_time, int max_runs, char infile)
+int main (double r, int  rec_time, int max_runs, char *infile)
 {
     // Read the file here
     int num_dims = read_num_dims(infile);
@@ -185,7 +185,7 @@ int main (double r, int  rec_time, int max_runs, char infile)
     int temp = 0;
     // Each loop runs a single simulation
     for(int i = 0; i < max_runs; i++){
-        num += single_simulation(r, rec_time, dims, pop_density);
+        num += single_simulation(r, rec_time, dims, pop_density_1d);
     }
 
     float avg = (float)(num / max_runs);
