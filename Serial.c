@@ -57,7 +57,7 @@ int check_infection(int *grid[], int dims[]){
 /**
  * Given a source cell, try to infect every other cell
  */
-void attemptInfection(int *grid[], int *next_grid[], float *pop_density[], int dims[], double r,
+void attemptInfection(int *grid[], int **next_grid, float *pop_density[], int dims[], double r,
                         int source_x, int source_y){
     for(int i = 0; i < dims[0]; i++){
         for(int j = 0; j < dims[1]; j++){
@@ -97,7 +97,7 @@ int simulate_step(double r, int rec_time, float *pop_density[], int *grid[], int
     memcpy(next_grid_1d, grid, num_elements * sizeof(int));
     // Create a 2d pointer
     int ( * next_grid) [dims[1]] = ( int ( * ) [dims[0]] ) next_grid_1d;
-
+    
     // Otherwise update the grid
     // Update recovery and immunity
     for(int i = 0; i < dims[0]; i++){
@@ -136,12 +136,12 @@ void initialise(int num_elements, int grid[]){
 /**
  * Runs an infection simulation, and returns the number of people infected.
  */
-int single_simulation(double r, int rec_time, int dims[], float pop_density[]){
+int single_simulation(double r, int rec_time, int dims[], float *pop_density_1d){
     // Setup all of the simualtion variables
 
     // Create the grid, inititalised to zero
     int num_elements = dims[0] * dims[1];
-    int *grid_1d[] = calloc(num_elements, sizeof(int));
+    int *grid_1d = calloc(num_elements, sizeof(int));
     int *time_infected_1d = calloc(num_elements, sizeof(int));
 
     // Map them to 2d arrays
@@ -171,24 +171,31 @@ int single_simulation(double r, int rec_time, int dims[], float pop_density[]){
     return count;
 }
 
-int main (double r, int  rec_time, int max_runs, char *infile)
+int main (double r, int  rec_time, int max_runs, const char *infile)
 {
+    printf("Start %d", r);
     // Read the file here
     int num_dims = read_num_dims(infile);
-    int dims[] = read_dims(infile, num_dims); 
-    float *pop_density_1d[] = read_array(infile, dims, num_dims);
+    printf("Start");
+    int *dims = read_dims(infile, num_dims); 
+    printf("Start");
+    float *pop_density_1d = read_array(infile, dims, num_dims);
+    printf("Start");
 
     // Initialise the random number generation
     srand(time(NULL));   // Initialization, should only be called once.
 
     int num = 0;
     int temp = 0;
+    printf("About to start simulations");
     // Each loop runs a single simulation
     for(int i = 0; i < max_runs; i++){
+        printf("Simulation %d", i);
         num += single_simulation(r, rec_time, dims, pop_density_1d);
     }
 
     float avg = (float)(num / max_runs);
 
+    printf("End");
     printf("The average number of infections: %f", avg);
 }

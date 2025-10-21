@@ -5,7 +5,8 @@
 
 //int test_func(int e);
 
-int main (){
+int main (int e){
+    printf("Start %d       ", e);
     int arr1[] = {1, 2, 3, 4, 
                     5, 6, 7, 8};
     int ( * arr2 ) [ 4 ] = ( int ( * ) [ 4 ] ) arr1;
@@ -31,4 +32,5 @@ int main (){
     // manhattan = 
 
     printf("%d", test_func(1));
+    printf("%d", grid2);
 }
