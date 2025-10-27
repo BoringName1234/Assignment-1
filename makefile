@@ -1,2 +1,2 @@
-serialmake: serial.c filereader.c
-	gcc -o SerialOutput 
+serialmake: serial.c filereader.c filereader.h
+	gcc -o SerialOutput Serial.c filereader.c

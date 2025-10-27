@@ -36,19 +36,23 @@
 // Now define the serial functions.
 
 // Simulation functions
-int check_infection(int *grid[], int dims[]){
+int check_infection(int *grid[], int *dims){
+    printf("Start of check_infection.\n");
     for (int i = 0; i < dims[0];i++)
     {
+        printf("Here\n");
         for(int j = 0; j < dims[1]; j++){
+            printf("Here2\n");
             if (grid[i][j] == 1)
             {
+                printf("Returned with 1\n");
                 // There is an infected cell
                 return 1;
             }
         }
         
     }
-
+    printf("Returned with 0\n");
     // There weren't any infected cells
     return 0;
         
@@ -57,7 +61,7 @@ int check_infection(int *grid[], int dims[]){
 /**
  * Given a source cell, try to infect every other cell
  */
-void attemptInfection(int *grid[], int **next_grid, float *pop_density[], int dims[], double r,
+void attemptInfection(int *grid[], int **next_grid, float *pop_density[], int *dims, double r,
                         int source_x, int source_y){
     for(int i = 0; i < dims[0]; i++){
         for(int j = 0; j < dims[1]; j++){
@@ -84,11 +88,12 @@ void attemptInfection(int *grid[], int **next_grid, float *pop_density[], int di
 /**
  * Performs one step of a simulation. Returns 0 if there are no infected cells left, and 1 otherwise.
  */
-int simulate_step(double r, int rec_time, float *pop_density[], int *grid[], int dims[], int *time_infected[]){
+int simulate_step(double r, int rec_time, float *pop_density[], int *grid[], int *dims, int *time_infected[]){
     // Finish simulation when there are no infected cells
     if (check_infection(grid, dims) == 0){
         return 0;
     }
+    printf("Infection check failed.\n");
 
     int num_elements = (dims[0] * dims[1]);
     // This will store the changes to the grid
@@ -98,6 +103,7 @@ int simulate_step(double r, int rec_time, float *pop_density[], int *grid[], int
     // Create a 2d pointer
     int ( * next_grid) [dims[1]] = ( int ( * ) [dims[0]] ) next_grid_1d;
     
+    printf("More variables made.\n");
     // Otherwise update the grid
     // Update recovery and immunity
     for(int i = 0; i < dims[0]; i++){
@@ -111,11 +117,13 @@ int simulate_step(double r, int rec_time, float *pop_density[], int *grid[], int
             }
         }
     }
+    printf("First loop complete\n");
 
     // Spread disease
     for(int i = 0; i < dims[0]; i++){
         for(int j = 0; j < dims[1]; j++){
             if(grid[i][j] == 1){
+                printf("Attempting to infect more untits.\n");
                 attemptInfection(grid, next_grid, pop_density, dims, r, i, j);
             }
         }
@@ -136,7 +144,7 @@ void initialise(int num_elements, int grid[]){
 /**
  * Runs an infection simulation, and returns the number of people infected.
  */
-int single_simulation(double r, int rec_time, int dims[], float *pop_density_1d){
+int single_simulation(double r, int rec_time, int *dims, float *pop_density_1d){
     // Setup all of the simualtion variables
 
     // Create the grid, inititalised to zero
@@ -148,13 +156,14 @@ int single_simulation(double r, int rec_time, int dims[], float *pop_density_1d)
     int ( * grid) [dims[1]] = ( int ( * ) [dims[0]] ) grid_1d;
     int ( * time_infected) [dims[1]] = ( int ( * ) [dims[0]] ) time_infected_1d;
     float ( * pop_density) [dims[1]] = ( int ( * ) [dims[0]] ) pop_density_1d;
-    
+    printf("Variables made\n");
     // Initialise the simulation
     initialise(num_elements, grid);
-    
+    printf("Intialisation complete\n");
     // Run the simulation until there are no infections
     int infections = 1;
     while(infections == 1){
+        printf("Infection step!\n");
         infections = simulate_step(r, rec_time, pop_density, grid, dims, time_infected);
     }
 
@@ -167,27 +176,34 @@ int single_simulation(double r, int rec_time, int dims[], float *pop_density_1d)
             }
         }
     }
-
+    printf("Societal collapse!\n");
     return count;
 }
 
-int main (double r, int  rec_time, int max_runs, const char *infile)
+int main (int argc, char *argv[])
 {
-    printf("Start %d", r);
+    // Set the user provided values
+    //double r, int  rec_time, int max_runs, const char *infile
+    double r = atof(argv[1]);
+    int rec_time = atoi(argv[2]);
+    int max_runs = atoi(argv[3]);
+    char *infile = argv[4];
+    
+    printf("Variables - r:%f, rec_time:%d, max_runs:%d, infile:%s \n", r, rec_time, max_runs, infile);
+    printf("Num args: %d\n", argc);
     // Read the file here
     int num_dims = read_num_dims(infile);
-    printf("Start");
+    printf("num_dims: %d\n", num_dims);
     int *dims = read_dims(infile, num_dims); 
-    printf("Start");
+    printf("dims: %d, %d\n", dims[0], dims[1]);
     float *pop_density_1d = read_array(infile, dims, num_dims);
-    printf("Start");
 
     // Initialise the random number generation
     srand(time(NULL));   // Initialization, should only be called once.
 
     int num = 0;
     int temp = 0;
-    printf("About to start simulations");
+    printf("About to start simulations\n");
     // Each loop runs a single simulation
     for(int i = 0; i < max_runs; i++){
         printf("Simulation %d", i);
