@@ -36,23 +36,15 @@
 // Now define the serial functions.
 
 // Simulation functions
-int check_infection(int *grid[], int *dims){
-    printf("Start of check_infection.\n");
-    for (int i = 0; i < dims[0];i++)
-    {
-        printf("Here\n");
-        for(int j = 0; j < dims[1]; j++){
-            printf("Here2\n");
-            if (grid[i][j] == 1)
-            {
-                printf("Returned with 1\n");
-                // There is an infected cell
-                return 1;
-            }
+int check_infection(int *grid, int *dims){
+    for(int i = 0; i < dims[0] * dims[1]; i++){
+        if (grid[i] == 1){
+            //printf("Returned with 1\n");
+            return 1;
         }
-        
     }
-    printf("Returned with 0\n");
+
+    //printf("Returned with 0\n");
     // There weren't any infected cells
     return 0;
         
@@ -61,119 +53,114 @@ int check_infection(int *grid[], int *dims){
 /**
  * Given a source cell, try to infect every other cell
  */
-void attemptInfection(int *grid[], int **next_grid, float *pop_density[], int *dims, double r,
-                        int source_x, int source_y){
-    for(int i = 0; i < dims[0]; i++){
-        for(int j = 0; j < dims[1]; j++){
-            // First check if it is not immune or infected already
-            if(grid[i][j] == 0){
-                int x_dist = abs(i - source_x);
-                int y_dist = abs(j - source_y);
-                int manhattan = x_dist + y_dist;
-                if(manhattan <= r){
-                    float probability = pop_density[i][j] / (x_dist + y_dist);
+void attemptInfection(int *grid, int *next_grid, float *pop_density, int *dims, double r, int source_x){                        
+                   
+    int source_row = source_x / dims[0];
+    int source_col = source_x % dims[0];
+                         
+    for(int i = 0; i < dims[0] * dims[1]; i++){
+        if(grid[i] == 0){
+            int row = i / dims[0];
+            int col = i % dims[0];
+
+            int x_dist = abs(row - source_row);
+            int y_dist = abs(col - source_col);
+            
+            int manhattan = x_dist + y_dist;
+            if(manhattan <= r){
+                    float probability = pop_density[i] / (x_dist + y_dist);
                     // Get a random number
                     float ra = (float)rand()/(float)(RAND_MAX);
                     if(ra <= probability){
-                        next_grid[source_x][source_y] = 1;
+                        next_grid[source_x] = 1;
                     }
                 }
-
-            }
         }
     }
+
     return;
 }
 
 /**
  * Performs one step of a simulation. Returns 0 if there are no infected cells left, and 1 otherwise.
  */
-int simulate_step(double r, int rec_time, float *pop_density[], int *grid[], int *dims, int *time_infected[]){
+int simulate_step(double r, int rec_time, int *dims, float *pop_density, int *grid, int *time_infected){
     // Finish simulation when there are no infected cells
     if (check_infection(grid, dims) == 0){
         return 0;
     }
-    printf("Infection check failed.\n");
+    //printf("Infection check failed.\n");
 
     int num_elements = (dims[0] * dims[1]);
     // This will store the changes to the grid
-    int *next_grid_1d = malloc(num_elements * sizeof(int));
+    int *next_grid = malloc(num_elements * sizeof(int));
     // Copy the grid to next_grid
-    memcpy(next_grid_1d, grid, num_elements * sizeof(int));
-    // Create a 2d pointer
-    int ( * next_grid) [dims[1]] = ( int ( * ) [dims[0]] ) next_grid_1d;
+    memcpy(next_grid, grid, num_elements * sizeof(int));
     
-    printf("More variables made.\n");
     // Otherwise update the grid
     // Update recovery and immunity
-    for(int i = 0; i < dims[0]; i++){
-        for(int j = 0; j < dims[1]; j++){
-            if(grid[i][j] == 1){
-                // Check for immunity condition before updating the time
-                if(time_infected[i][j] == rec_time){
-                    next_grid[i][j] = 2;
-                }
-                time_infected[i][j] += 1;
+    printf("Try to make things immune.\n");
+    for(int i = 0; i < num_elements; i++){
+        if(grid[i] == 1){
+            if(time_infected[i] == rec_time){
+                next_grid[i] = 2;
+                printf("Position %d made immune\n", i);
             }
+            time_infected[i] += 1;
         }
     }
-    printf("First loop complete\n");
+    printf("time infected is:");
+    output_Grid(time_infected, dims);
+    printf("next_grid is: ");
+    output_Grid(next_grid, dims);
 
     // Spread disease
-    for(int i = 0; i < dims[0]; i++){
-        for(int j = 0; j < dims[1]; j++){
-            if(grid[i][j] == 1){
-                printf("Attempting to infect more untits.\n");
-                attemptInfection(grid, next_grid, pop_density, dims, r, i, j);
-            }
+    for(int i = 0; i < num_elements; i++){
+        if(grid[i] == 1){    
+            //printf("Attempting to infect more untits.\n");
+            attemptInfection(grid, next_grid, pop_density, dims, r, i);
         }
     }
-
+    printf("next_grid is: ");
+    output_Grid(next_grid, dims);
     // Update the grid
     memcpy(grid, next_grid, num_elements * sizeof(int));
+    
+    printf("grid is now: ");
+    output_Grid(grid, dims);
 
     // Return 1 if there is an infected cell
     return 1;
 }
 
-void initialise(int num_elements, int grid[]){
-    int r = rand() % num_elements;
-    grid[r] = 1;
-}
 
 /**
  * Runs an infection simulation, and returns the number of people infected.
  */
-int single_simulation(double r, int rec_time, int *dims, float *pop_density_1d){
+int single_simulation(double r, int rec_time, int *dims, float *pop_density){
     // Setup all of the simualtion variables
 
     // Create the grid, inititalised to zero
     int num_elements = dims[0] * dims[1];
-    int *grid_1d = calloc(num_elements, sizeof(int));
-    int *time_infected_1d = calloc(num_elements, sizeof(int));
+    int *grid = calloc(num_elements, sizeof(int));
+    int *time_infected = calloc(num_elements, sizeof(int));
 
-    // Map them to 2d arrays
-    int ( * grid) [dims[1]] = ( int ( * ) [dims[0]] ) grid_1d;
-    int ( * time_infected) [dims[1]] = ( int ( * ) [dims[0]] ) time_infected_1d;
-    float ( * pop_density) [dims[1]] = ( int ( * ) [dims[0]] ) pop_density_1d;
-    printf("Variables made\n");
-    // Initialise the simulation
-    initialise(num_elements, grid);
-    printf("Intialisation complete\n");
+    // Randomly select the infection's starting point
+    int random = rand() % num_elements;
+    grid[random] = 1;
+
+    output_Grid(grid, dims);
     // Run the simulation until there are no infections
     int infections = 1;
     while(infections == 1){
-        printf("Infection step!\n");
-        infections = simulate_step(r, rec_time, pop_density, grid, dims, time_infected);
+        infections = simulate_step(r, rec_time, dims, pop_density, grid,  time_infected);
     }
 
     // Count the number of infections
     int count = 0;
-    for(int i = 0; i < dims[0]; i++){
-        for(int j = 0; j < dims[1]; j++){
-            if(grid[i][j] == 2){
-                count += 1;
-            }
+    for(int i = 0; i < num_elements; i++){
+        if(grid[i] == 2){
+            count += 1;
         }
     }
     printf("Societal collapse!\n");
@@ -206,12 +193,25 @@ int main (int argc, char *argv[])
     printf("About to start simulations\n");
     // Each loop runs a single simulation
     for(int i = 0; i < max_runs; i++){
-        printf("Simulation %d", i);
+        printf("Simulation %d\n", i);
         num += single_simulation(r, rec_time, dims, pop_density_1d);
     }
 
     float avg = (float)(num / max_runs);
 
-    printf("End");
+    printf("End\n");
     printf("The average number of infections: %f", avg);
+}
+
+void output_Grid(int *grid, int *dims){
+    int prev = 0;
+    printf("{");
+    for(int i = 0; i < dims[0] * dims[1]; i++){
+        if(i / dims[0] > prev){
+            printf("}\n{");
+            prev++;
+        }
+        printf("%d ", grid[i]);
+    }
+    printf("}\n");
 }
