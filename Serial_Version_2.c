@@ -52,33 +52,96 @@ int check_infection(int *grid, int *dims){
 }
 
 /**
+ * Finds the minimum of two integers
+ */
+int minOf(int one, int two){
+    if(one <= two){
+        return one;
+    }
+    else{
+        return two;
+    }
+
+}
+
+/**
  * Given a source cell, try to infect every other cell
  */
-void attemptInfection(int *grid, int *next_grid, float *pop_density, int *dims, double r, int source_x){                        
-                   
-    int source_row = source_x / dims[0];
-    int source_col = source_x % dims[0];
-                         
-    for(int i = 0; i < dims[0] * dims[1]; i++){
-        if(grid[i] == 0){
-            int row = i / dims[0];
-            int col = i % dims[0];
+void attemptInfection(int *grid, int *next_grid, float *pop_density, int *dims, int r, int source_position){                        
+    // Limiting the search area to only cells that are in range will help with large grids
+    // Using Manhattan distance, this shape will be all of the cells accessible 
+    //       3
+    //     3 2 3
+    //   3 2 1 2 3
+    // 3 2 1 0 1 2 3
+    //   3 2 1 2 3
+    //     3 2 3
+    //       3
 
-            int x_dist = abs(row - source_row);
-            int y_dist = abs(col - source_col);
+    // (2r + 1) * (2r + 1)
+    int num_columns = dims[1];
+    int num_rows = dims[0];
+
+    int row = source_position / num_columns;
+    int col = source_position % num_columns;
+
+    // x mod num_colums is the position in the row - 0 is the first, 1 is the second etc
+    // It is therefore also the number of elements to the left of i
+    // We only care about the columns/rows in maximum range
+    int num_cols_left = source_position % num_columns;
+    num_cols_left = minOf(num_cols_left, r);
+    int num_cols_right = num_columns - 1 - num_cols_left;
+    num_cols_right = minOf(num_cols_right, r);
+
+    // Similar logic for rows
+    // x / num_columns is the row of x, and since C indexes from 0 it is also the number of rows above
+    int rows_above = source_position / num_columns;
+    rows_above = minOf(rows_above, r);
+    int rows_below = num_rows - 1 - rows_above;
+    rows_below = minOf(rows_below, r);
+
+    // First build an array of all of the distances
+    // Then calculate the probability of each 
+
+    int total_columns = num_cols_left + 1 + num_cols_right;
+    int total_rows = rows_above + 1 + rows_below;
+    int start = source_position - (num_columns * rows_above) - num_cols_left;
+
+    // The max space available is (2r + 1)^2
+    float *probability_grid = malloc((2*r + 1) * (2*r + 1), sizeof(float));
+    int *manhattan_table = malloc(((2*r + 1) * (2*r + 1)), sizeof(int));
+
+    // For entries above
+    for(int i = 0; i < total_columns * total_rows; i++){
+        // position is the actual position in the grid
+        int y_pos = i / (total_columns);
+        int x_pos = i % (total_columns);
+        int position = start + (y_pos * num_columns) + x_pos;
+
+        int row = position / num_columns;
+        int col = position % num_columns;
+
+        int x_dist = abs(row - source_row);
+        int y_dist = abs(col - source_col);
             
-            int manhattan = x_dist + y_dist;
-            if(manhattan <= r){
-                    float probability = pop_density[i] / (manhattan);
-                    //printf("manhattan = %d and pop_density = %f\n", manhattan, pop_density[i]);
-                    // Get a random number
-                    float ra = (float)rand()/(float)(RAND_MAX);
-                    //printf("ra = %f and probability = %f\n", ra, probability);
-                    if(ra <= probability){
-                        next_grid[i] = 1;
-                        //printf("Infected %d", i);
-                    }
-                }
+        int manhattan = x_dist + y_dist;
+
+        manhattan_table[i] = manhattan;
+        
+        probability_grid[i] = pop_density[position] / (manhattan);
+
+    }
+
+    for(int i = 0; i < total_columns * total_rows; i++){
+        float random_number = (float)rand()/(float)(RAND_MAX);
+        if(random_number <= probability_grid[i]){
+            int y_pos = i / (total_columns);
+            int x_pos = i % (total_columns);
+            int position = start + (y_pos * num_columns) + x_pos;
+
+            if(grid[position] == 0){
+                next_grid[position] = 1;
+            }
         }
     }
 
@@ -88,25 +151,53 @@ void attemptInfection(int *grid, int *next_grid, float *pop_density, int *dims, 
 /**
  * Performs one step of a simulation. Returns 0 if there are no infected cells left, and 1 otherwise.
  */
-int simulate_step(double r, int rec_time, int *dims, float *pop_density, int *grid, int *time_infected){
+int simulate_step(int r, int rec_time, int *dims, float *pop_density, int *grid, int *time_infected){
     // Finish simulation when there are no infected cells
+    if (check_infection(grid, dims) == 0){
+        return 0;
+    }
+    //printf("Infection check failed.\n");
+
+    int num_elements = (dims[0] * dims[1]);
+    // This will store the changes to the grid
+    int *next_grid = malloc(num_elements * sizeof(int));
+    // Copy the grid to next_grid
+    memcpy(next_grid, grid, num_elements * sizeof(int));
+    
+    //printf("time infected is:");
+    //output_Grid(time_infected, dims);
+    //printf("next_grid is: ");
+    //output_Grid(next_grid, dims);
+
+    // Spread disease, from infected cells
     for(int i = 0; i < num_elements; i++){
-            if(grid[i] == 1){    
-                //printf("Attempting to infect more untits.\n");
-                //attemptInfection(grid, next_grid, pop_density, dims, r, i);
+        if(grid[i] == 1){    
+            //printf("Attempting to infect more untits.\n");
+            attemptInfection(grid, next_grid, pop_density, dims, r, i);
+        }
+    }
+    
+    // The recovery timer should be set up so that you update it for every cell that is infectious THIS TURN
+    // And then try to make them recover
+    // Update recovery and immunity
+    for(int i = 0; i < num_elements; i++){
+        if(grid[i] == 1){
+            time_infected[i] += 1;
+            if(time_infected[i] == rec_time){
+                next_grid[i] = 2;
             }
-            // The recovery timer should be set up so that you update it for every cell that is infectious THIS TURN
-            // And then try to make them recover
-            // Update recovery and immunity
-            if(grid[i] == 1){
-                time_infected[i] += 1;
-                if(time_infected[i] == rec_time){
-                    next_grid[i] = 2;
-                }
-            }
-            
-            // Update the grid
-            memcpy(grid, next_grid, num_elements * sizeof(int));
+        }
+    }
+    //printf("next_grid is: ");
+    //output_Grid(next_grid, dims);
+    
+    // Update the grid
+    memcpy(grid, next_grid, num_elements * sizeof(int));
+    
+    //printf("grid is now: ");
+    //output_Grid(grid, dims);
+
+    // Return 1 if there is an infected cell
     return 1;
 }
 
@@ -114,7 +205,7 @@ int simulate_step(double r, int rec_time, int *dims, float *pop_density, int *gr
 /**
  * Runs an infection simulation, and returns the number of people infected.
  */
-int single_simulation(double r, int rec_time, int *dims, float *pop_density){
+int single_simulation(int r, int rec_time, int *dims, float *pop_density){
     // Setup all of the simualtion variables
 
     // Create the grid, inititalised to zero
@@ -146,7 +237,7 @@ int main (int argc, char *argv[])
 {
     // Set the user provided values
     //double r, int  rec_time, int max_runs, const char *infile
-    double r = atof(argv[1]);
+    int r = atof(argv[1]);
     int rec_time = atoi(argv[2]);
     int max_runs = atoi(argv[3]);
     char *infile = argv[4];

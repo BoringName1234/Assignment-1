@@ -127,6 +127,7 @@ int simulate_step(double r, int rec_time, int *dims, float *pop_density, int *gr
     }
     //printf("next_grid is: ");
     //output_Grid(next_grid, dims);
+    
     // Update the grid
     memcpy(grid, next_grid, num_elements * sizeof(int));
     
