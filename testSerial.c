@@ -71,17 +71,14 @@ void attemptInfection(int *grid, int *next_grid, float *pop_density, int *dims, 
                             float *probability_grid, int *manhattan_table){                        
     // Limiting the search area to only cells that are in range will help with large grids
     // Using Manhattan distance, this shape will be all of the cells accessible 
-    //        4
-    //      4 3 4
-    //    4 3 2 3 4
-    //  4 3 2 1 2 3 4
-    //4 3 2 1 0 1 2 3 4
-    //  4 3 2 1 2 3 4
-    //    4 3 2 3 4
-    //      4 3 4 
-    //        4
+    //       3
+    //     3 2 3
+    //   3 2 1 2 3
+    // 3 2 1 0 1 2 3
+    //   3 2 1 2 3
+    //     3 2 3
+    //       3
 
-    // (2r + 1) * (2r + 1)
     int num_columns = dims[1];
     int num_rows = dims[0];
 
@@ -92,15 +89,16 @@ void attemptInfection(int *grid, int *next_grid, float *pop_density, int *dims, 
     // It is therefore also the number of elements to the left of i
     // We only care about the columns/rows in maximum range
     int num_cols_left = source_position % num_columns;
-    num_cols_left = minOf(num_cols_left, r);
     int num_cols_right = num_columns - 1 - num_cols_left;
+    //printf("Cols right: %d\n", num_cols_right);
+    num_cols_left = minOf(num_cols_left, r);
     num_cols_right = minOf(num_cols_right, r);
 
     // Similar logic for rows
     // x / num_columns is the row of x, and since C indexes from 0 it is also the number of rows above
     int rows_above = source_position / num_columns;
-    rows_above = minOf(rows_above, r);
     int rows_below = num_rows - 1 - rows_above;
+    rows_above = minOf(rows_above, r);
     rows_below = minOf(rows_below, r);
 
     // First build an array of all of the distances
@@ -110,12 +108,25 @@ void attemptInfection(int *grid, int *next_grid, float *pop_density, int *dims, 
     int total_rows = rows_above + 1 + rows_below;
     int start = source_position - (num_columns * rows_above) - num_cols_left;
 
+    //printf("Total: %d, position: %d, cols: %d, rows: %d\n", total_columns*total_rows, source_position,  total_columns, total_rows);
+    //printf("Min cols left: %d\n", num_cols_left);
+    //printf("Min cols right: %d\n", num_cols_right);
+
+    /* 
+    0  1  2  3  4
+    5  6  7  8  9
+    10 11 12 13 14
+    15 16 17 18 19
+    20 21 22 23 24
+    */
+
     // For entries above
     for(int i = 0; i < total_columns * total_rows; i++){
         // position is the actual position in the grid
         int y_pos = i / (total_columns);
         int x_pos = i % (total_columns);
         int position = start + (y_pos * num_columns) + x_pos;
+        //printf("position: %d, ", position);
 
         int row = position / num_columns;
         int col = position % num_columns;
@@ -132,20 +143,80 @@ void attemptInfection(int *grid, int *next_grid, float *pop_density, int *dims, 
     }
 
     for(int i = 0; i < total_columns * total_rows; i++){
-        float random_number = (float)rand()/(float)(RAND_MAX);
-        if(random_number <= probability_grid[i]){
-            int y_pos = i / (total_columns);
-            int x_pos = i % (total_columns);
-            int position = start + (y_pos * num_columns) + x_pos;
+        if(manhattan_table[i] <= r){
+            float random_number = (float)rand()/(float)(RAND_MAX);
+            if(random_number <= probability_grid[i]){
+                int y_pos = i / (total_columns);
+                int x_pos = i % (total_columns);
+                int position = start + (y_pos * num_columns) + x_pos;
 
-            if(grid[position] == 0){
-                next_grid[position] = 1;
+                if(grid[position] == 0){
+                    next_grid[position] = 1;
+                }
             }
         }
     }
 
     return;
 }
+
+/**
+ * Performs one step of a simulation. Returns 0 if there are no infected cells left, and 1 otherwise.
+ */
+int simulate_step(int r, int rec_time, int *dims, float *pop_density, int *grid, int *time_infected){
+    // Finish simulation when there are no infected cells
+    if (check_infection(grid, dims) == 0){
+        return 0;
+    }
+    //printf("Infection check failed.\n");
+
+    int num_elements = (dims[0] * dims[1]);
+    // This will store the changes to the grid
+    int *next_grid = malloc(num_elements * sizeof(int));
+    // Copy the grid to next_grid
+    memcpy(next_grid, grid, num_elements * sizeof(int));
+    
+    //printf("time infected is:");
+    //output_Grid(time_infected, dims);
+    //printf("next_grid is: ");
+    //output_Grid(next_grid, dims);
+    
+    // The max space available is (2r + 1)^2
+    float *probability_grid = calloc((2*r + 1) * (2*r + 1), sizeof(float));
+    int *manhattan_table = calloc(((2*r + 1) * (2*r + 1)), sizeof(int));
+
+    // Spread disease, from infected cells
+    for(int i = 0; i < num_elements; i++){
+        if(grid[i] == 1){    
+            //printf("Attempting to infect more untits.\n");
+            attemptInfection(grid, next_grid, pop_density, dims, r, i, probability_grid, manhattan_table);
+        }
+    }
+    
+    // The recovery timer should be set up so that you update it for every cell that is infectious THIS TURN
+    // And then try to make them recover
+    // Update recovery and immunity
+    for(int i = 0; i < num_elements; i++){
+        if(grid[i] == 1){
+            time_infected[i] += 1;
+            if(time_infected[i] == rec_time){
+                next_grid[i] = 2;
+            }
+        }
+    }
+    //printf("next_grid is: ");
+    //output_Grid(next_grid, dims);
+    
+    // Update the grid
+    memcpy(grid, next_grid, num_elements * sizeof(int));
+    
+    //printf("grid is now: ");
+    //output_Grid(grid, dims);
+
+    // Return 1 if there is an infected cell
+    return 1;
+}
+
 
 /**
  * Runs an infection simulation, and returns the number of people infected.
@@ -162,64 +233,11 @@ int single_simulation(int r, int rec_time, int *dims, float *pop_density){
     int random = rand() % num_elements;
     grid[random] = 1;
 
-    // This grid is used to update the current grid
-    int *next_grid = malloc(num_elements * sizeof(int));
-    memcpy(next_grid, grid, num_elements * sizeof(int));
-
-    printf("\nstart\n");
-    output_Grid(grid, dims);
-
-    // These grids are used in the attempInfection function
-    // The max space available is (2r + 1)^2
-    float *probability_grid = calloc((2*r + 1) * (2*r + 1), sizeof(float));
-    int *manhattan_table = calloc(((2*r + 1) * (2*r + 1)), sizeof(int));
-
-    // This is the simulation loop
+    //output_Grid(grid, dims);
+    // Run the simulation until there are no infections
     int infections = 1;
     while(infections == 1){
-        // Finish simulation when there are no infected cells
-        if (check_infection(grid, dims) == 0){
-            infections = 0;
-        }
-        
-        // Spread disease, from infected cells
-        for(int i = 0; i < num_elements; i++){
-            if(grid[i] == 1){    
-                //printf("Attempting to infect more untits.\n");
-                attemptInfection(grid, next_grid, pop_density, dims, r, i, probability_grid, manhattan_table);
-            }
-        }
-
-        // The recovery timer should be set up so that you update it for every cell that is infectious THIS TURN
-        // And then try to make them recover
-        // Update recovery and immunity
-        for(int i = 0; i < num_elements; i++){
-            if(grid[i] == 1){
-                time_infected[i] += 1;
-                if(time_infected[i] == rec_time){
-                    next_grid[i] = 2;
-                }
-            }
-        }
-
-        
-        //printf("\nTime\n");
-        //output_Grid(time_infected, dims);
-
-        //printf("\nBefore grid\n");
-        //output_Grid(grid, dims);
-
-        
-        //printf("\nBefore next_grid\n");
-        //output_Grid(next_grid, dims);
-
-        // Copy the next_grid into the grid
-        memcpy(grid, next_grid, num_elements * sizeof(int));
-
-        printf("\nAfter\n");
-        output_Grid(grid, dims);
-
-
+        infections = simulate_step(r, rec_time, dims, pop_density, grid,  time_infected);
     }
 
     // Count the number of infections
