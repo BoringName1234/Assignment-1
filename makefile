@@ -7,5 +7,8 @@ versionmake: Serial_Version_2.c file_reader.c
 testmake: testSerial.c file_reader.c
 	gcc -o TestOutput testSerial.c file_reader.c -O3 
 
-testmake: testSerial_Version2.c file_reader.c
+testmake2: testSerial_Version2.c file_reader.c
 	gcc -o TestOutputV2 testSerial_Version2.c file_reader.c -O3 
+
+speed: SerialVersion3.c file_reader.c
+	gcc -o SpeedTest SerialVersion3.c file_reader.c -O3 
