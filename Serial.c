@@ -64,6 +64,11 @@ int minOf(int one, int two){
 
 }
 
+struct infected_cell {
+    int **nearby_cells;
+    int time_infected;
+};
+
 /**
  * Given a source cell, try to infect every other cell
  */
@@ -77,6 +82,22 @@ void attemptInfection(int **int_grids, float **float_grids, int *dims, int r, in
     //   3 2 1 2 3
     //     3 2 3
     //       3
+
+    //         4
+    //       4 3 4
+    //     4 3 2 3 4
+    //   4 3 2 1 2 3 4
+    // 4 3 2 1 0 1 2 3 4
+    //   4 3 2 1 2 3 4
+    //     4 3 2 3 4
+    //       4 3 4
+    //         4
+    
+    //       2 
+    //     2 1 2 
+    //   2 1 0 1 2 
+    //     2 1 2 
+    //       2 
 
     int *grid = int_grids[0];
     int *next_grid = int_grids[1];
@@ -126,38 +147,84 @@ void attemptInfection(int **int_grids, float **float_grids, int *dims, int r, in
     20 21 22 23 24
     */
 
-    // For entries above
-    for(int i = 0; i < total_columns * total_rows; i++){
-        // position is the actual position in the grid
-        int y_pos = i / (total_columns);
-        int x_pos = i % (total_columns);
-        int position = start + (y_pos * num_columns) + x_pos;
-        //printf("position: %d, ", position);
-
-        int row = position / num_columns;
-        int col = position % num_columns;
-
-        int x_dist = abs(row - source_row);
-        int y_dist = abs(col - source_col);
-            
-        int manhattan = x_dist + y_dist;
-
-        manhattan_table[i] = manhattan;
-        
-        probability_grid[i] = pop_density[position] / (manhattan);
-
+    for(int i = 0; i< dims[0] * dims[1]; i++){
+        grid[i] = i;
     }
+    printf("Grid 5 : %d", grid[4]);
 
-    for(int i = 0; i < total_columns * total_rows; i++){
-        if(manhattan_table[i] <= r){
+    int (*grid_2d) [ num_columns * num_rows ] = ( int ( * ) [ num_columns * num_rows ] ) grid;
+    
+    printf("Grid 5 : %d", grid_2d[0][4]);
+    int (*next_grid_2d) [ num_columns * num_rows ] = ( int ( * ) [ num_columns * num_rows ] ) next_grid;
+
+    float (*pop_density_2d) [ num_columns * num_rows ] = ( float ( * ) [ num_columns * num_rows ] ) pop_density;
+
+    int leftmost_col = source_col - num_cols_left;
+    int base_row_width = num_cols_left + 1 + num_cols_right;
+    printf("Base row width: %d\n", base_row_width);
+    printf("Source: %d, %d\n", source_row, source_col);
+    // Do the entries above first
+    for(int j = 0; j <= rows_above; j++){
+        printf("New j loop\n");
+        int first_col_pos;
+        if(num_cols_left == 0){
+            first_col_pos = source_col;
+        }
+        else{
+            first_col_pos = leftmost_col + j;
+        }
+        int row_width = base_row_width - (j * 2);
+        int row = source_row - j;
+        printf("row width: %d\n", row_width);
+        for(int i = first_col_pos; i < first_col_pos + row_width; i++){
+            printf("j = %d, i = %d ", row, i);
+            printf("value: %d\n", grid_2d[row][i]);
+                
+            int x_dist = abs(i - source_row);
+            int y_dist = abs(row - source_col);
+            
+            int manhattan = x_dist + y_dist;
+
+            float ra = pop_density_2d[row][i] / (manhattan);
+
             float random_number = (float)rand()/(float)(RAND_MAX);
-            if(random_number <= probability_grid[i]){
-                int y_pos = i / (total_columns);
-                int x_pos = i % (total_columns);
-                int position = start + (y_pos * num_columns) + x_pos;
+            if(random_number <= ra){
+                if(grid_2d[row][i] == 0){
+                    next_grid_2d[row][i] = 1;
+                }
+            }
 
-                if(grid[position] == 0){
-                    next_grid[position] = 1;
+        }
+    }
+    printf("in between");
+
+    // Then the entries below
+    for(int j = 0; j <= rows_above; j++){
+        printf("here 2 ");
+        int first_col_pos;
+        if(num_cols_left == 0){
+            first_col_pos = source_col;
+        }
+        else{
+            first_col_pos = leftmost_col + j;
+        }
+        
+        int row = source_row - j;
+        int row_width = base_row_width - (j * 2);
+        for(int i = first_col_pos; i < first_col_pos + row_width; i++){
+                
+            int x_dist = abs(i - source_row);
+            int y_dist = abs(row - source_col);
+            
+            int manhattan = x_dist + y_dist;
+
+            float ra = pop_density_2d[row][i] / (manhattan);
+
+            
+            float random_number = (float)rand()/(float)(RAND_MAX);
+            if(random_number <= ra){
+                if(grid_2d[row][i] == 0){
+                    next_grid_2d[row][i] = 1;
                 }
             }
         }
