@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <time.h>
 
 #include "file_reader.h"
 
@@ -68,8 +67,7 @@ int minOf(int one, int two){
 /**
  * Given a source cell, try to infect every other cell
  */
-void attemptInfection(int *grid, int *next_grid, float *pop_density, int *dims, int r, int source_position,
-                            float *probability_grid, int *manhattan_table){                        
+void attemptInfection(int **int_grids, float **float_grids, int *dims, int r, int source_position){                        
     // Limiting the search area to only cells that are in range will help with large grids
     // Using Manhattan distance, this shape will be all of the cells accessible 
     //       3
@@ -79,7 +77,14 @@ void attemptInfection(int *grid, int *next_grid, float *pop_density, int *dims, 
     //   3 2 1 2 3
     //     3 2 3
     //       3
-   
+
+    int *grid = int_grids[0];
+    int *next_grid = int_grids[1];
+    int *manhattan_table = int_grids[3];
+
+    float *pop_density = float_grids[0];
+    float *probability_grid = float_grids[1];
+
     int num_columns = dims[1];
     int num_rows = dims[0];
 
@@ -164,87 +169,41 @@ void attemptInfection(int *grid, int *next_grid, float *pop_density, int *dims, 
 /**
  * Performs one step of a simulation. Returns 0 if there are no infected cells left, and 1 otherwise.
  */
-int simulate_step(int r, int rec_time, int *dims, float *pop_density, int *grid, int *time_infected){
-
-    // Time variables
-    //struct timespec start_time, end_time;
-    //struct timespec total_time, total_end_time;
-
+int simulate_step(int r, int rec_time, int *dims, int **int_grids, float **float_grids){
+    
+    int *grid = int_grids[0];
+    int *next_grid = int_grids[1];
+    int *time_infected = int_grids[2];
+    //printf("1");
+    int num_elements = dims[0] * dims[1];
+    
     // Finish simulation when there are no infected cells
     if (check_infection(grid, dims) == 0){
         return 0;
     }
     //printf("Infection check failed.\n");
 
-    int num_elements = (dims[0] * dims[1]);
-    // This will store the changes to the grid
-    int *next_grid = malloc(num_elements * sizeof(int));
     // Copy the grid to next_grid
     memcpy(next_grid, grid, num_elements * sizeof(int));
-    
+    //printf("2");
     //printf("time infected is:");
     //output_Grid(time_infected, dims);
     //printf("next_grid is: ");
     //output_Grid(next_grid, dims);
     
-    // The max space available is (2r + 1)^2
-    float *probability_grid = calloc((2*r + 1) * (2*r + 1), sizeof(float));
-    int *manhattan_table = calloc(((2*r + 1) * (2*r + 1)), sizeof(int));
 
-
-    // Measure time for infection
-    double infection_total_seconds_taken = 0;
-    double infection_total_time_taken = 0;
-
-    double infection_seconds_taken = 0;
-    double infection_average_time_taken = 0;
-
-    //clock_gettime(CLOCK_REALTIME, &total_time);
     // Spread disease, from infected cells
     for(int i = 0; i < num_elements; i++){
         if(grid[i] == 1){    
-            //clock_gettime(CLOCK_REALTIME, &start_time);
             //printf("Attempting to infect more untits.\n");
-            attemptInfection(grid, next_grid, pop_density, dims, r, i, probability_grid, manhattan_table);
-            //clock_gettime(CLOCK_REALTIME, &end_time);
-
-  	        //infection_average_time_taken +=  (end_time.tv_nsec - start_time.tv_nsec); // and now with any microseconds
-  	
+            attemptInfection(int_grids, float_grids, dims, r, i);
         }
     }
-    
-    //clock_gettime(CLOCK_REALTIME, &total_end_time);
-    
-    //infection_total_time_taken += (total_end_time.tv_nsec - total_time.tv_nsec); // and now with any microseconds
-    
-    //if(infection_total_time_taken > 0){
-      //  printf("Infection total time taken: %f nanoseconds  \n", infection_total_time_taken);
-
-        //infection_average_time_taken = infection_average_time_taken / num_elements;
-
-        //printf("Infection average time taken: %f nanoseconds  \n", infection_average_time_taken);
-
-            
-        // Count the number of infections
-        //int count = 0;
-        //for(int i = 0; i < num_elements; i++){
-          //  if(grid[i] == 2){
-            //    count += 1;
-            //}
-        //}
-        //printf("Num infections: %d\n", count);
-
-
-    //}
-
-    // Recoverey time
-    //double recovery_seconds_taken = 0;
-    //double recovery_total_time_taken = 0;
+    //printf("3");
     
     // The recovery timer should be set up so that you update it for every cell that is infectious THIS TURN
     // And then try to make them recover
     // Update recovery and immunity
-    //clock_gettime(CLOCK_REALTIME, &start_time);
     for(int i = 0; i < num_elements; i++){
         if(grid[i] == 1){
             time_infected[i] += 1;
@@ -253,27 +212,16 @@ int simulate_step(int r, int rec_time, int *dims, float *pop_density, int *grid,
             }
         }
     }
-    //clock_gettime(CLOCK_REALTIME, &end_time);
-
-    //recovery_total_time_taken += (end_time.tv_nsec - start_time.tv_nsec); // and now with any microseconds
-  	
-    
-    //printf("Recovery total time taken: %f nanoseconds  \n", recovery_total_time_taken);
-
-
     //printf("next_grid is: ");
     //output_Grid(next_grid, dims);
     
-    // Update the grid
+    // Update the grid by copying next_grid to grid
     memcpy(grid, next_grid, num_elements * sizeof(int));
+    
+    //printf("After grid: %d and next_grid: %d\n", grid, next_grid);
     
     //printf("grid is now: ");
     //output_Grid(grid, dims);
-    //double test = end_time.tv_nsec;
-    //double test2 = start_time.tv_nsec;
-    
-    //printf("Start, %f  End, %f \n", test2 ,test);
-    //printf("Infection took %f more time\n", test);
 
     // Return 1 if there is an infected cell
     return 1;
@@ -283,27 +231,21 @@ int simulate_step(int r, int rec_time, int *dims, float *pop_density, int *grid,
 /**
  * Runs an infection simulation, and returns the number of people infected.
  */
-int single_simulation(int r, int rec_time, int *dims, float *pop_density){
-    // Setup all of the simualtion variables
-
-    // Create the grid, inititalised to zero
+int single_simulation(int r, int rec_time, int *dims, int **int_grids, float **float_grids){
+    // Declare some variables that will be reused here
+    int *grid = int_grids[0];
     int num_elements = dims[0] * dims[1];
-    int *grid = calloc(num_elements, sizeof(int));
-    int *time_infected = calloc(num_elements, sizeof(int));
 
     // Randomly select the infection's starting point
     int random = rand() % num_elements;
     grid[random] = 1;
 
-    //output_Grid(grid, dims);
     // Run the simulation until there are no infections
     int infections = 1;
-    int counter = 1;
     while(infections == 1){
-        //printf("Simulation: %d\n", counter);
-        counter++;
-        infections = simulate_step(r, rec_time, dims, pop_density, grid,  time_infected);
-
+        infections = simulate_step(r, rec_time, dims, int_grids, float_grids);
+        
+        //printf("After After grid: %d and next_grid: %d\n", grid, next_grid);
     }
 
     // Count the number of infections
@@ -341,23 +283,43 @@ int main (int argc, char *argv[])
     // Initialise the time variables
     struct timeval start_time, end_time;
     
-    int num = 0;
-    int temp = 0;
+    // Create the grids that will be used
+    int num_elements = dims[0] * dims[1];
+    // grid is stores the infection status for each element
+    int *grid = calloc(num_elements, sizeof(int));
+    // This will store the changes to the grid
+    int *next_grid = malloc(num_elements * sizeof(int));
+    // Counts the time that each element has been infected for
+    int *time_infected = calloc(num_elements, sizeof(int));
+    // Create the grids used for spreading infection
+    float *probability_grid = calloc((2*r + 1) * (2*r + 1), sizeof(float));
+    int *manhattan_grid = calloc(((2*r + 1) * (2*r + 1)), sizeof(int));
+    
+    // Format: {grid, next_grid, time_infected, manhattan_grid}
+    int *int_grids[] = {grid, next_grid, time_infected, manhattan_grid};
 
-    //gettimeofday(&start_time, NULL);
+    // Format: {pop_density, probability_grid}
+    float *float_grids[] = {pop_density, probability_grid};
+    
+    // The number of infections
+    int num_infections = 0;
+    
+    gettimeofday(&start_time, NULL);
     // Each loop runs a single simulation
     for(int i = 0; i < max_runs; i++){
-        num += single_simulation(r, rec_time, dims, pop_density);
-        
+        num_infections += single_simulation(r, rec_time, dims, int_grids, float_grids);
+        // Perform cleanup so that the arrays can be reused
+        memset(grid, 0, num_elements * sizeof(int));
+        memset(time_infected, 0, num_elements * sizeof(int));
     }
-    //gettimeofday(&end_time, NULL);
+    gettimeofday(&end_time, NULL);
 
     
   	double seconds_taken = (end_time.tv_sec - start_time.tv_sec);           // just integral number of seconds
   	double total_time_taken = 1.0E-06 * ((seconds_taken*1000000) + (end_time.tv_usec - start_time.tv_usec)); // and now with any microseconds
   	printf("Time taken: %f seconds  \n", total_time_taken);
 
-    float avg = ((float)num / max_runs);
+    float avg = ((float)num_infections / max_runs);
     printf("The average number of infections: %f", avg);
 }
 

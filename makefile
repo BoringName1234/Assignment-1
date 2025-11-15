@@ -12,3 +12,6 @@ testmake2: testSerial_Version2.c file_reader.c
 
 speed: SerialVersion3.c file_reader.c
 	gcc -o SpeedTest SerialVersion3.c file_reader.c -O3 
+
+memoryFix: SerialMemoryFix.c file_reader.c
+	gcc -o SerialMemoryFix SerialMemoryFix.c file_reader.c -O3 
