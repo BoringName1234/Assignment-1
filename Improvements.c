@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <math.h>
+
+#include <stdbool.h> 
 
 #include "file_reader.h"
 
@@ -64,11 +67,6 @@ int minOf(int one, int two){
 
 }
 
-struct infected_cell {
-    int **nearby_cells;
-    int time_infected;
-};
-
 /**
  * Given a source cell, try to infect every other cell
  */
@@ -82,22 +80,6 @@ void attemptInfection(int **int_grids, float **float_grids, int *dims, int r, in
     //   3 2 1 2 3
     //     3 2 3
     //       3
-
-    //         4
-    //       4 3 4
-    //     4 3 2 3 4
-    //   4 3 2 1 2 3 4
-    // 4 3 2 1 0 1 2 3 4
-    //   4 3 2 1 2 3 4
-    //     4 3 2 3 4
-    //       4 3 4
-    //         4
-    
-    //       2 
-    //     2 1 2 
-    //   2 1 0 1 2 
-    //     2 1 2 
-    //       2 
 
     int *grid = int_grids[0];
     int *next_grid = int_grids[1];
@@ -147,88 +129,65 @@ void attemptInfection(int **int_grids, float **float_grids, int *dims, int r, in
     20 21 22 23 24
     */
 
-    for(int i = 0; i< dims[0] * dims[1]; i++){
-        grid[i] = i;
-    }
-    printf("Grid 5 : %d", grid[4]);
-
-    int (*grid_2d) [ num_columns * num_rows ] = ( int ( * ) [ num_columns * num_rows ] ) grid;
+    float *probabilities = calloc(total_columns*total_rows, sizeof(float));
     
-    printf("Grid 5 : %d", grid_2d[0][4]);
-    int (*next_grid_2d) [ num_columns * num_rows ] = ( int ( * ) [ num_columns * num_rows ] ) next_grid;
-
-    float (*pop_density_2d) [ num_columns * num_rows ] = ( float ( * ) [ num_columns * num_rows ] ) pop_density;
-
-    int leftmost_col = source_col - num_cols_left;
-    int base_row_width = num_cols_left + 1 + num_cols_right;
-    printf("Base row width: %d\n", base_row_width);
-    printf("Source: %d, %d\n", source_row, source_col);
-    // Do the entries above first
-    for(int j = 0; j <= rows_above; j++){
-        printf("New j loop\n");
-        int first_col_pos;
-        if(num_cols_left == 0){
-            first_col_pos = source_col;
-        }
-        else{
-            first_col_pos = leftmost_col + j;
-        }
-        int row_width = base_row_width - (j * 2);
-        int row = source_row - j;
-        printf("row width: %d\n", row_width);
-        for(int i = first_col_pos; i < first_col_pos + row_width; i++){
-            printf("j = %d, i = %d ", row, i);
-            printf("value: %d\n", grid_2d[row][i]);
-                
-            int x_dist = abs(i - source_row);
-            int y_dist = abs(row - source_col);
-            
-            int manhattan = x_dist + y_dist;
-
-            float ra = pop_density_2d[row][i] / (manhattan);
-
-            float random_number = (float)rand()/(float)(RAND_MAX);
-            if(random_number <= ra){
-                if(grid_2d[row][i] == 0){
-                    next_grid_2d[row][i] = 1;
-                }
-            }
-
-        }
+    for(int i = 0; i < total_columns * total_rows; i++){
+        probabilities[i] = (float)rand()/(float)(RAND_MAX);
     }
-    printf("in between");
+    
 
-    // Then the entries below
-    for(int j = 0; j <= rows_above; j++){
-        printf("here 2 ");
-        int first_col_pos;
-        if(num_cols_left == 0){
-            first_col_pos = source_col;
-        }
-        else{
-            first_col_pos = leftmost_col + j;
-        }
+    // Do the maths for every entry
+    for(int i = 0; i < total_columns * total_rows; i++){
+        // position is the actual position in the grid
+        int y_pos = i / (total_columns);
+        int x_pos = i % (total_columns);
+        int position = start + (y_pos * num_columns) + x_pos;
+        //printf("position: %d, ", position);
+
+        int row = position / num_columns;
+        int col = position % num_columns;
+
+        int x_dist = abs(row - source_row);
+        int y_dist = abs(col - source_col);
+            
+        int manhattan = x_dist + y_dist;
+
+        manhattan_table[i] = manhattan;
         
-        int row = source_row - j;
-        int row_width = base_row_width - (j * 2);
-        for(int i = first_col_pos; i < first_col_pos + row_width; i++){
-                
-            int x_dist = abs(i - source_row);
-            int y_dist = abs(row - source_col);
-            
-            int manhattan = x_dist + y_dist;
+        probability_grid[i] = pop_density[position] / (manhattan);
 
-            float ra = pop_density_2d[row][i] / (manhattan);
+        // If the random number - probability is negative
+        float result = probabilities[i] - probability_grid[i];
 
-            
-            float random_number = (float)rand()/(float)(RAND_MAX);
-            if(random_number <= ra){
-                if(grid_2d[row][i] == 0){
-                    next_grid_2d[row][i] = 1;
-                }
-            }
-        }
+        // Then apply the sign of the result to 1
+        //copysignf(1.0, result);
+        //bool is_negative = result < 0;
+        //bool is_negative = 0;
+
+        // Set the position to 1 if:
+        // Position is not infected and probability is infected
+        //int curr = next_grid[position];
+        //next_grid[position] = curr == 0 && is_negative == 1;
+        //printf("%d",next_grid[position]);
+
     }
+
+    free(probabilities);
+
+    //for(int i = 0; i < total_columns * total_rows; i++){
+      //  if(manhattan_table[i] <= r){
+        //    float random_number = (float)rand()/(float)(RAND_MAX);
+          //  if(random_number <= probability_grid[i]){
+            //    int y_pos = i / (total_columns);
+              //  int x_pos = i % (total_columns);
+                //int position = start + (y_pos * num_columns) + x_pos;
+
+                //if(grid[position] == 0){
+                  //  next_grid[position] = 1;
+                //}
+            //}
+        //}
+    //}
 
     return;
 }
@@ -292,6 +251,13 @@ int simulate_step(int r, int rec_time, int *dims, int **int_grids, float **float
 
     // Return 1 if there is an infected cell
     return 1;
+}
+
+void update_manhattan_distances(int *manhattan_table, int source){
+    
+    int ( ∗ twoD_Manhattan ) [ num ] = ( int ( ∗ ) [  ] ) OneD Array ;
+
+    for(int i )
 }
 
 
@@ -359,8 +325,8 @@ int main (int argc, char *argv[])
     // Counts the time that each element has been infected for
     int *time_infected = calloc(num_elements, sizeof(int));
     // Create the grids used for spreading infection
-    float *probability_grid = calloc((2*r + 1) * (2*r + 1), sizeof(float));
-    int *manhattan_grid = calloc(((2*r + 1) * (2*r + 1)), sizeof(int));
+    float *probability_grid = calloc(num_elements, sizeof(float));
+    int *manhattan_grid = calloc(num_elements, sizeof(int));
     
     // Format: {grid, next_grid, time_infected, manhattan_grid}
     int *int_grids[] = {grid, next_grid, time_infected, manhattan_grid};
