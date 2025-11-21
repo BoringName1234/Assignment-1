@@ -15,6 +15,20 @@
 
 /*If there are any issues with this code, please contact: h.j.forbes@liverpool.ac.uk*/
 
+
+int product(const int *dims, int num_dims){
+
+    int product = 1; 
+    int i;
+
+    for(i = 0; i < num_dims; i++){
+        product *= dims[i];
+    }
+
+    return product;
+}
+
+
 int read_num_dims(const char *filename){
 
     FILE *file = fopen(filename,"r");
@@ -155,18 +169,6 @@ int write_to_output_file(const char *filename, float *output, int *dims, int num
 }
 
 
-
-int product(const int *dims, int num_dims){
-
-    int product = 1; 
-    int i;
-
-    for(i = 0; i < num_dims; i++){
-        product *= dims[i];
-    }
-
-    return product;
-}
 
 int test_func(int e){
     return 1920;
